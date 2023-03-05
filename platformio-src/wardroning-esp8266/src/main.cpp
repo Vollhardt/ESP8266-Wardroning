@@ -1,19 +1,11 @@
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_GFX.h>
 #include <ESP8266WiFi.h>
 #include <SD.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
 #include <TimeLib.h>   
 
-#define UTC_offset -7  // PDT
+#define UTC_offset -5  // EDT
 #define SD_CS      D8
-
-Adafruit_SSD1306 display(128, 64, &Wire, -1);  // shared reset
-
-#if (SSD1306_LCDHEIGHT != 64)
-#error("Incorrect screen height, fix Adafruit_SSD1306.h");
-#endif
 
 String logFileName = "";
 int networks = 0;
@@ -27,56 +19,40 @@ TinyGPSPlus tinyGPS;
 void setup() {
   Serial.begin(115200);
   ss.begin(9600);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // OLED address
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
   WiFi.mode(WIFI_STA); WiFi.disconnect();
-  display.println("* ESP8266 WarDriver *\n");
 
   /* initialize SD card */
-  display.print("SD Card: ");
+  Serial.println("Initializing SD Card")
   if (!SD.begin(SD_CS)) {
-    display.println("not found"); display.display(); Serial.println("not found");
+    Serial.println("not found");
     while (!SD.begin(SD_CS));
   }
-  display.setCursor(54, 16); display.setTextColor(BLACK);
-  display.println("not found");
-  display.setCursor(54, 16); display.setTextColor(WHITE);
-  display.println("found"); display.display(); Serial.println("found");
+  Serial.println("found");
   initializeSD();
 
   /* initialize GPS */
   delay(500);
-  display.println();
+  Serial.println();
   if (ss.available() > 0) {
-    display.println("GPS: found");
-    display.println("Waiting on fix...");
+    Serial.println("GPS: found");
+    Serial.println("Waiting on fix...");
   }
   else {
-    display.println("GPS: not found");
-    display.println("Check wiring & reset.");
+    Serial.println("GPS: not found");
+    Serial.println("Check wiring & reset.");
   }
-  display.display();
+
   while (!tinyGPS.location.isValid()) {
     Serial.println(tinyGPS.location.isValid());
     delay(0);
     smartDelay(500);
   }
-  display.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
-  display.display();
-
-  display.clearDisplay();
+  Serial.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
+  Serial.println("setup complete...");
 }
+
 void lookForNetworks() {
-  display.fillRect(48,0,30,7,BLACK);
-  display.setCursor(48, 0);
   sprintf_P(currentTime, PSTR("%02d:%02d"),hour(),minute());
-  display.println(currentTime); 
-  display.drawLine(0,3,46,3,WHITE);
-  display.drawLine(79,3,128,3,WHITE);
-  display.display();
   int n = WiFi.scanNetworks();
   if (n == 0) {
     Serial.println("no networks found");
@@ -84,28 +60,23 @@ void lookForNetworks() {
   else {
     for (int i = 0; i < n; ++i) {
       if ((WiFi.channel(i) > 0) && (WiFi.channel(i) < 15)) {
-        display.clearDisplay();
-        display.setCursor(48, 0);
         sprintf_P(currentTime, PSTR("%02d:%02d"),hour(),minute());
-        display.println(currentTime);    
-        display.drawLine(0,3,46,3,WHITE);
-        display.drawLine(79,3,128,3,WHITE);
-        display.display();    
         networks++;
         File logFile = SD.open(logFileName, FILE_WRITE);
         logFile.print(WiFi.BSSIDstr(i));  logFile.print(',');
         logFile.print(WiFi.SSID(i)); logFile.print(',');
-        display.setCursor(0,10);
-        if (WiFi.SSID(i).length() > 20) { display.println(WiFi.SSID(i).substring(0, 18 ) + "..."); }
-        else { display.println(WiFi.SSID(i)); }
+
+        if (WiFi.SSID(i).length() > 20) { Serial.println(WiFi.SSID(i).substring(0, 18 ) + "..."); }
+        else { Serial.println(WiFi.SSID(i)); }
         String bssid = WiFi.BSSIDstr(i);
         bssid.replace(":", "");
-        display.println(bssid + "    (" + WiFi.RSSI(i) + ")");
+        Serial.println(bssid + "    (" + WiFi.RSSI(i) + ")");
         logFile.print(getEncryption(i,"")); logFile.print(',');
-        display.print("Enc: "+getEncryption(i,"screen"));
-        display.println("   Ch: "+ String(WiFi.channel(i)));    
-        display.println();    
-        display.setCursor(0,40);
+        //was display
+        Serial.print("Enc: "+getEncryption(i,"screen"));
+        Serial.println("   Ch: "+ String(WiFi.channel(i)));    
+        Serial.println();    
+        //end was display
         logFile.print(year());   logFile.print('-');
         logFile.print(month());  logFile.print('-');
         logFile.print(day());    logFile.print(' ');
@@ -116,20 +87,19 @@ void lookForNetworks() {
         logFile.print(WiFi.RSSI(i)); logFile.print(',');
         logFile.print(tinyGPS.location.lat(), 6); logFile.print(',');
         logFile.print(tinyGPS.location.lng(), 6); logFile.print(',');
-        display.println("Networks: " + String(networks));
-        display.print(String(int(tinyGPS.speed.mph())) + " MPH");
-        display.println(" Sats: " + String(tinyGPS.satellites.value()));
-        display.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
+        //was display
+        Serial.println("Networks: " + String(networks));
+        Serial.print(String(int(tinyGPS.speed.mph())) + " MPH");
+        Serial.println(" Sats: " + String(tinyGPS.satellites.value()));
+        Serial.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
+        //end was display
         logFile.print(tinyGPS.altitude.meters(), 1); logFile.print(',');
         logFile.print(tinyGPS.hdop.value(), 1); logFile.print(',');
         logFile.println("WIFI");
         logFile.close();
-        display.display();
+
         if (getEncryption(i,"")=="[WEP][ESS]"){  // flash if WEP detected
-          display.invertDisplay(true);  delay(200);
-          display.invertDisplay(false); delay(200);
-          display.invertDisplay(true);  delay(200);
-          display.invertDisplay(false); delay(200);
+          Serial.println("WEP WEP WEP");
         }
       }
     }
@@ -176,9 +146,9 @@ void initializeSD() { // create new CSV file and add WiGLE headers
     i++; logFileName = "log" + String(i) + ".csv";
   }
   File logFile = SD.open(logFileName, FILE_WRITE);
-  display.println("Created: " + logFileName); display.display();
+  Serial.println("Created: " + logFileName);
   if (logFile) {
-    logFile.println("WigleWifi-1.4,appRelease=2.53,model=D1-Mini-Pro,release=0.0.0,device=NetDash,display=SSD1306,board=ESP8266,brand=Wemos");
+    logFile.println("WigleWifi-1.4,appRelease=2.53,model=D1-Mini-Pro,release=0.0.0,device=NetDash,board=ESP8266,brand=Wemos");
     logFile.println("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type");
   }
   logFile.close();
