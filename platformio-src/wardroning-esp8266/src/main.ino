@@ -6,6 +6,10 @@
 
 #define UTC_offset -5  // EDT
 #define SD_CS      D8
+#define GPS_RX D4
+#define GPS_TX D3
+
+
 
 String logFileName = "";
 int networks = 0;
@@ -13,16 +17,16 @@ int networks = 0;
 #define LOG_RATE 500
 char currentTime[5];
         
-SoftwareSerial ss(D4, D3); // RX, TX
+SoftwareSerial gps(GPS_RX, GPS_TX); // RX, TX
 TinyGPSPlus tinyGPS;
 
 void setup() {
   Serial.begin(115200);
-  ss.begin(9600);
+  gps.begin(9600);
   WiFi.mode(WIFI_STA); WiFi.disconnect();
 
   /* initialize SD card */
-  Serial.println("Initializing SD Card")
+  Serial.println("Initializing SD Card");
   if (!SD.begin(SD_CS)) {
     Serial.println("not found");
     while (!SD.begin(SD_CS));
@@ -33,9 +37,10 @@ void setup() {
   /* initialize GPS */
   delay(500);
   Serial.println();
-  if (ss.available() > 0) {
+  if (gps.available() > 0) {
     Serial.println("GPS: found");
     Serial.println("Waiting on fix...");
+    Serial.println(gps.read());
   }
   else {
     Serial.println("GPS: not found");
@@ -43,9 +48,14 @@ void setup() {
   }
 
   while (!tinyGPS.location.isValid()) {
+    // Serial.print("is gps available? ");
+    // Serial.println(gps.available());
+    Serial.println("checking tinygps location isvalid: ");
     Serial.println(tinyGPS.location.isValid());
+    if(gps.available())
+      Serial.println(gps.read());
     delay(0);
-    smartDelay(500);
+    smartDelay(5000);
   }
   Serial.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
   Serial.println("setup complete...");
@@ -73,7 +83,7 @@ void lookForNetworks() {
         Serial.println(bssid + "    (" + WiFi.RSSI(i) + ")");
         logFile.print(getEncryption(i,"")); logFile.print(',');
         //was display
-        Serial.print("Enc: "+getEncryption(i,"screen"));
+        Serial.print("Enc: "+getEncryption(i,"short"));
         Serial.println("   Ch: "+ String(WiFi.channel(i)));    
         Serial.println();    
         //end was display
@@ -119,8 +129,8 @@ void loop() {
 static void smartDelay(unsigned long ms) {
   unsigned long start = millis();
   do {
-    while (ss.available())
-      tinyGPS.encode(ss.read());
+    while (gps.available())
+      tinyGPS.encode(gps.read());
   } while (millis() - start < ms);
 }
 
@@ -158,19 +168,20 @@ String getEncryption(uint8_t network, String src) { // return encryption for WiG
   byte encryption = WiFi.encryptionType(network);
   switch (encryption) {
     case 2:
-      if (src=="screen") { return "WPA"; }
+      if (src=="short") { return "WPA"; }
       return "[WPA-PSK-CCMP+TKIP][ESS]";
     case 5:
-      if (src=="screen") { return "WEP"; }
+      if (src=="short") { return "WEP"; }
       return "[WEP][ESS]";
     case 4:
-      if (src=="screen") { return "WPA2"; }
+      if (src=="short") { return "WPA2"; }
       return "[WPA2-PSK-CCMP+TKIP][ESS]";
     case 7:
-      if (src=="screen") { return "NONE" ; }
+      if (src=="short") { return "NONE" ; }
       return "[ESS]";
     case 8:
-      if (src=="screen") { return "AUTO"; }
+      if (src=="short") { return "AUTO"; }
       return "[WPA-PSK-CCMP+TKIP][WPA2-PSK-CCMP+TKIP][ESS]";
   }
+  return (src=="short"?"UNDEF":"[UNDEF]");
 }
