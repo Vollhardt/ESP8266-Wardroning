@@ -6,8 +6,8 @@
 
 #define UTC_offset -5  // EDT
 #define SD_CS      D8
-#define GPS_RX D4
-#define GPS_TX D3
+#define GPS_RX D1
+#define GPS_TX D4
 
 
 
@@ -24,7 +24,8 @@ void setup() {
   Serial.begin(115200);
   gps.begin(9600);
   WiFi.mode(WIFI_STA); WiFi.disconnect();
-
+  pinMode(LED_BUILTIN, OUTPUT);
+    
   /* initialize SD card */
   Serial.println("Initializing SD Card");
   if (!SD.begin(SD_CS)) {
@@ -46,19 +47,26 @@ void setup() {
     Serial.println("GPS: not found");
     Serial.println("Check wiring & reset.");
   }
-
+  uint8_t led_status=LOW;
   while (!tinyGPS.location.isValid()) {
     // Serial.print("is gps available? ");
     // Serial.println(gps.available());
     Serial.println("checking tinygps location isvalid: ");
     Serial.println(tinyGPS.location.isValid());
-    if(gps.available())
-      Serial.println(gps.read());
+    // if(gps.available())
+    //   Serial.println(gps.read());
+    digitalWrite(LED_BUILTIN,led_status);
+    if(led_status==LOW){
+      led_status=HIGH;
+    } else {
+      led_status=LOW;
+    }
     delay(0);
     smartDelay(5000);
   }
   Serial.println("(" + String(tinyGPS.location.lat(), 5) + "," + String(tinyGPS.location.lng(), 5) + ")");
   Serial.println("setup complete...");
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void lookForNetworks() {
